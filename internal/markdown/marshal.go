@@ -72,6 +72,9 @@ func Marshal(issue *jira.Issue, baseURL string) (string, error) {
 		b.WriteString(fmt.Sprintf("reporter: %s\n", issue.Fields.Reporter.EmailAddress))
 	}
 	b.WriteString(fmt.Sprintf("url: %s/browse/%s\n", baseURL, issue.Key))
+	if issue.Fields.Updated != "" {
+		b.WriteString(fmt.Sprintf("updated: %s\n", issue.Fields.Updated))
+	}
 	b.WriteString(fmt.Sprintf("synced: %s\n", time.Now().UTC().Format(time.RFC3339)))
 	b.WriteString("---\n\n")
 

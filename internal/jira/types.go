@@ -17,6 +17,7 @@ type Fields struct {
 	Reporter    *User     `json:"reporter,omitempty"`
 	Description *ADFNode  `json:"description,omitempty"`
 	Comment     *Comments `json:"comment,omitempty"`
+	Updated     string    `json:"updated,omitempty"`
 }
 
 // Status represents a JIRA status.

@@ -48,6 +48,19 @@ Use --dry-run to preview the ADF output without applying.`,
 			return fmt.Errorf("converting body to ADF: %w", err)
 		}
 
+		client := jira.NewClient(appConfig)
+
+		// Conflict check: compare updated timestamps
+		if ticket.Updated != "" {
+			current, err := client.GetIssue(ticket.Key)
+			if err != nil {
+				return fmt.Errorf("checking for conflicts on %s: %w", ticket.Key, err)
+			}
+			if current.Fields.Updated != "" && ticket.Updated != current.Fields.Updated {
+				return fmt.Errorf("conflict: %s was modified in JIRA since your last pull.\n  Local:  %s\n  JIRA:   %s\nRe-pull the ticket before pushing.", ticket.Key, ticket.Updated, current.Fields.Updated)
+			}
+		}
+
 		if pushDryRun {
 			fmt.Fprintf(os.Stderr, "Dry run: would push body to %s\n\n", ticket.Key)
 			enc := json.NewEncoder(os.Stdout)
@@ -57,8 +70,6 @@ Use --dry-run to preview the ADF output without applying.`,
 			}
 			return nil
 		}
-
-		client := jira.NewClient(appConfig)
 
 		// Push only the description
 		payload := jira.UpdatePayload{

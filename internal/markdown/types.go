@@ -11,6 +11,7 @@ type Ticket struct {
 	Assignee string
 	Reporter string
 	URL      string
+	Updated  string
 	Synced   string
 	Body     string // markdown description
 	Comments []TicketComment

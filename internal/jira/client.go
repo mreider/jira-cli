@@ -32,7 +32,7 @@ func NewClient(cfg config.Config) *Client {
 
 // GetIssue fetches a single issue by key.
 func (c *Client) GetIssue(key string) (*Issue, error) {
-	url := fmt.Sprintf("%s/rest/api/3/issue/%s?fields=summary,status,issuetype,priority,labels,assignee,reporter,description,comment", c.baseURL, key)
+	url := fmt.Sprintf("%s/rest/api/3/issue/%s?fields=summary,status,issuetype,priority,labels,assignee,reporter,description,comment,updated", c.baseURL, key)
 
 	req, err := http.NewRequest("GET", url, nil)
 	if err != nil {
@@ -48,7 +48,7 @@ func (c *Client) GetIssue(key string) (*Issue, error) {
 
 	if resp.StatusCode != http.StatusOK {
 		body, _ := io.ReadAll(resp.Body)
-		return nil, fmt.Errorf("JIRA API returned %d: %s", resp.StatusCode, string(body))
+		return nil, formatAPIError(resp.StatusCode, body)
 	}
 
 	var issue Issue
@@ -61,7 +61,7 @@ func (c *Client) GetIssue(key string) (*Issue, error) {
 
 // UpdateIssue updates an issue's fields.
 func (c *Client) UpdateIssue(key string, payload UpdatePayload) error {
-	url := fmt.Sprintf("%s/rest/api/3/issue/%s", c.baseURL, key)
+	url := fmt.Sprintf("%s/rest/api/3/issue/%s?notifyUsers=false", c.baseURL, key)
 
 	data, err := json.Marshal(payload)
 	if err != nil {
@@ -82,7 +82,7 @@ func (c *Client) UpdateIssue(key string, payload UpdatePayload) error {
 
 	if resp.StatusCode != http.StatusNoContent && resp.StatusCode != http.StatusOK {
 		body, _ := io.ReadAll(resp.Body)
-		return fmt.Errorf("JIRA API returned %d: %s", resp.StatusCode, string(body))
+		return formatAPIError(resp.StatusCode, body)
 	}
 
 	return nil
@@ -106,7 +106,7 @@ func (c *Client) GetTransitions(key string) ([]TransitionInfo, error) {
 
 	if resp.StatusCode != http.StatusOK {
 		body, _ := io.ReadAll(resp.Body)
-		return nil, fmt.Errorf("JIRA API returned %d: %s", resp.StatusCode, string(body))
+		return nil, formatAPIError(resp.StatusCode, body)
 	}
 
 	var result TransitionsResponse
@@ -144,7 +144,7 @@ func (c *Client) DoTransition(key string, transitionID string) error {
 
 	if resp.StatusCode != http.StatusNoContent && resp.StatusCode != http.StatusOK {
 		body, _ := io.ReadAll(resp.Body)
-		return fmt.Errorf("JIRA API returned %d: %s", resp.StatusCode, string(body))
+		return formatAPIError(resp.StatusCode, body)
 	}
 
 	return nil
@@ -256,6 +256,27 @@ func (c *Client) UpdateConfluencePage(pageID string, payload ConfluenceUpdatePay
 	}
 
 	return nil
+}
+
+// JiraErrors represents the structured error response from the JIRA API.
+type JiraErrors struct {
+	Errors        map[string]string `json:"errors"`
+	ErrorMessages []string          `json:"errorMessages"`
+}
+
+func formatAPIError(statusCode int, body []byte) error {
+	var je JiraErrors
+	if json.Unmarshal(body, &je) == nil && (len(je.ErrorMessages) > 0 || len(je.Errors) > 0) {
+		var parts []string
+		for _, msg := range je.ErrorMessages {
+			parts = append(parts, msg)
+		}
+		for field, msg := range je.Errors {
+			parts = append(parts, field+": "+msg)
+		}
+		return fmt.Errorf("JIRA API %d: %s", statusCode, strings.Join(parts, "; "))
+	}
+	return fmt.Errorf("JIRA API returned %d: %s", statusCode, string(body))
 }
 
 func (c *Client) setHeaders(req *http.Request) {

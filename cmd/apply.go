@@ -48,6 +48,11 @@ var applyCmd = &cobra.Command{
 			return fmt.Errorf("fetching current state of %s: %w", ticket.Key, err)
 		}
 
+		// Conflict check: compare updated timestamps
+		if ticket.Updated != "" && current.Fields.Updated != "" && ticket.Updated != current.Fields.Updated {
+			return fmt.Errorf("conflict: %s was modified in JIRA since your last pull.\n  Local:  %s\n  JIRA:   %s\nRe-pull the ticket before pushing.", ticket.Key, ticket.Updated, current.Fields.Updated)
+		}
+
 		// Build update payload
 		payload, err := markdown.ToUpdatePayload(ticket)
 		if err != nil {

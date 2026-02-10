@@ -23,6 +23,7 @@ type frontmatter struct {
 	Assignee       string   `yaml:"assignee"`
 	Reporter       string   `yaml:"reporter"`
 	URL            string   `yaml:"url"`
+	Updated        string   `yaml:"updated"`
 	Synced         string   `yaml:"synced"`
 }
 
@@ -71,6 +72,7 @@ func Unmarshal(content string) (*Ticket, error) {
 		Assignee: meta.Assignee,
 		Reporter: meta.Reporter,
 		URL:      meta.URL,
+		Updated:  meta.Updated,
 		Synced:   meta.Synced,
 		Body:     strings.TrimSpace(desc),
 		Comments: comments,
