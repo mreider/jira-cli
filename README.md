@@ -6,13 +6,21 @@ Designed for workflows where you want to work with JIRA/Confluence content in yo
 
 ## Install
 
-Download a binary from [Releases](https://github.com/mreider/jira-cli/releases), or build from source:
+```bash
+curl -fsSL https://raw.githubusercontent.com/mreider/jira-cli/main/install.sh | sh
+```
+
+This downloads the latest release for your OS/architecture and installs it to `/usr/local/bin`.
+
+Or download a binary manually from [Releases](https://github.com/mreider/jira-cli/releases).
+
+### Build from source
+
+Requires Go 1.21+.
 
 ```bash
 make build
 ```
-
-Requires Go 1.21+.
 
 ## Setup
 
