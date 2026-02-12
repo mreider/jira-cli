@@ -63,7 +63,17 @@ Writes to stdout by default, or to a file with --output-dir.`,
 			// Non-fatal if space lookup fails
 		}
 
-		md, err := markdown.MarshalConfluencePage(page, space)
+		// Check for existing custom properties to preserve on re-pull
+		var customProps map[string]interface{}
+		if confluenceOutputDir != "" {
+			existingFilename := sanitizeFilename(page.Title) + ".md"
+			existingPath := filepath.Join(confluenceOutputDir, existingFilename)
+			if existing, err := os.ReadFile(existingPath); err == nil {
+				customProps, _ = markdown.ExtractConfluenceCustomProperties(string(existing))
+			}
+		}
+
+		md, err := markdown.MarshalConfluencePage(page, space, customProps)
 		if err != nil {
 			return fmt.Errorf("converting to markdown: %w", err)
 		}

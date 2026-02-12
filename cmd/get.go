@@ -34,7 +34,16 @@ var getCmd = &cobra.Command{
 			return fmt.Errorf("fetching issue %s: %w", issueKey, err)
 		}
 
-		md, err := markdown.Marshal(issue, appConfig.URL)
+		// Check for existing custom properties to preserve on re-pull
+		var customProps map[string]interface{}
+		if outputDir != "" {
+			existingPath := filepath.Join(outputDir, issueKey+".md")
+			if existing, err := os.ReadFile(existingPath); err == nil {
+				customProps, _ = markdown.ExtractCustomProperties(string(existing))
+			}
+		}
+
+		md, err := markdown.Marshal(issue, appConfig.URL, customProps)
 		if err != nil {
 			return fmt.Errorf("converting to markdown: %w", err)
 		}

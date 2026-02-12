@@ -5,11 +5,100 @@ import (
 	"encoding/json"
 	"fmt"
 	"regexp"
+	"sort"
 	"strings"
 
 	"github.com/dt-pm-tools/jira-cli/internal/jira"
 	"gopkg.in/yaml.v3"
 )
+
+// jiraOwnedKeys are frontmatter keys regenerated from JIRA data on each pull.
+// Any key NOT in this set is considered a user-added custom property.
+var jiraOwnedKeys = map[string]bool{
+	"key": true, "title": true, "status": true, "statusCategory": true,
+	"type": true, "priority": true, "labels": true, "assignee": true,
+	"reporter": true, "url": true, "updated": true, "synced": true,
+}
+
+// confluenceOwnedKeys are frontmatter keys regenerated from Confluence data on each pull.
+var confluenceOwnedKeys = map[string]bool{
+	"source": true, "pageId": true, "title": true, "status": true,
+	"spaceKey": true, "spaceName": true, "version": true, "url": true,
+	"synced": true,
+}
+
+// ExtractCustomProperties parses YAML frontmatter from an existing file and
+// returns any properties that are NOT managed by the jira CLI. These are
+// user-added custom properties (e.g., local_update_pending, discuss_with,
+// customer_evidence, last_reviewed, para).
+func ExtractCustomProperties(content string) (map[string]interface{}, error) {
+	fm, _, err := splitFrontmatter(content)
+	if err != nil {
+		return nil, err
+	}
+
+	var all map[string]interface{}
+	if err := yaml.Unmarshal([]byte(fm), &all); err != nil {
+		return nil, err
+	}
+
+	custom := make(map[string]interface{})
+	for k, v := range all {
+		if !jiraOwnedKeys[k] {
+			custom[k] = v
+		}
+	}
+
+	return custom, nil
+}
+
+// ExtractConfluenceCustomProperties is like ExtractCustomProperties but for
+// Confluence pages, which have a different set of owned keys.
+func ExtractConfluenceCustomProperties(content string) (map[string]interface{}, error) {
+	fm, _, err := splitFrontmatter(content)
+	if err != nil {
+		return nil, err
+	}
+
+	var all map[string]interface{}
+	if err := yaml.Unmarshal([]byte(fm), &all); err != nil {
+		return nil, err
+	}
+
+	custom := make(map[string]interface{})
+	for k, v := range all {
+		if !confluenceOwnedKeys[k] {
+			custom[k] = v
+		}
+	}
+
+	return custom, nil
+}
+
+// FormatCustomProperties serializes custom frontmatter properties as YAML lines.
+// Keys are sorted for deterministic output.
+func FormatCustomProperties(props map[string]interface{}) string {
+	if len(props) == 0 {
+		return ""
+	}
+
+	keys := make([]string, 0, len(props))
+	for k := range props {
+		keys = append(keys, k)
+	}
+	sort.Strings(keys)
+
+	var b strings.Builder
+	for _, k := range keys {
+		single := map[string]interface{}{k: props[k]}
+		data, err := yaml.Marshal(single)
+		if err != nil {
+			continue
+		}
+		b.Write(data)
+	}
+	return b.String()
+}
 
 // frontmatter is the YAML frontmatter fields for JIRA issues.
 type frontmatter struct {

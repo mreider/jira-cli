@@ -41,7 +41,10 @@ var preservedDescriptions = map[string]string{
 }
 
 // Marshal converts a JIRA issue into a markdown string with YAML frontmatter.
-func Marshal(issue *jira.Issue, baseURL string) (string, error) {
+// If customProps is non-nil, those properties are preserved after the JIRA-managed
+// fields. This allows user-added frontmatter (e.g., local_update_pending, para)
+// to survive re-pulls.
+func Marshal(issue *jira.Issue, baseURL string, customProps map[string]interface{}) (string, error) {
 	baseURL = strings.TrimRight(baseURL, "/")
 
 	var b strings.Builder
@@ -76,6 +79,13 @@ func Marshal(issue *jira.Issue, baseURL string) (string, error) {
 		b.WriteString(fmt.Sprintf("updated: %s\n", issue.Fields.Updated))
 	}
 	b.WriteString(fmt.Sprintf("synced: %s\n", time.Now().UTC().Format(time.RFC3339)))
+	// Preserve custom frontmatter properties from existing file
+	if len(customProps) > 0 {
+		extra := FormatCustomProperties(customProps)
+		if extra != "" {
+			b.WriteString(extra)
+		}
+	}
 	b.WriteString("---\n\n")
 
 	// Title
@@ -120,7 +130,8 @@ func Marshal(issue *jira.Issue, baseURL string) (string, error) {
 
 // MarshalConfluencePage converts a Confluence page (with ADF body) into markdown
 // with YAML frontmatter. Reuses the same ADF→markdown converter as JIRA issues.
-func MarshalConfluencePage(page *jira.ConfluencePage, space *jira.ConfluenceSpace) (string, error) {
+// If customProps is non-nil, those properties are preserved after the Confluence-managed fields.
+func MarshalConfluencePage(page *jira.ConfluencePage, space *jira.ConfluenceSpace, customProps map[string]interface{}) (string, error) {
 	var b strings.Builder
 
 	// YAML frontmatter (read-only)
@@ -140,6 +151,13 @@ func MarshalConfluencePage(page *jira.ConfluencePage, space *jira.ConfluenceSpac
 		b.WriteString(fmt.Sprintf("url: %s%s\n", page.Links.Base, page.Links.WebUI))
 	}
 	b.WriteString(fmt.Sprintf("synced: %s\n", time.Now().UTC().Format(time.RFC3339)))
+	// Preserve custom frontmatter properties from existing file
+	if len(customProps) > 0 {
+		extra := FormatCustomProperties(customProps)
+		if extra != "" {
+			b.WriteString(extra)
+		}
+	}
 	b.WriteString("---\n\n")
 
 	// Title
