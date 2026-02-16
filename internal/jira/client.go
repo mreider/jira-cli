@@ -208,6 +208,73 @@ func (c *Client) GetConfluenceSpace(spaceID string) (*ConfluenceSpace, error) {
 	return &space, nil
 }
 
+// GetConfluenceSpaceByKey fetches a Confluence space by its key (e.g., "ENG").
+func (c *Client) GetConfluenceSpaceByKey(spaceKey string) (*ConfluenceSpace, error) {
+	url := fmt.Sprintf("%s/wiki/api/v2/spaces?keys=%s", c.baseURL, spaceKey)
+
+	req, err := http.NewRequest("GET", url, nil)
+	if err != nil {
+		return nil, fmt.Errorf("creating request: %w", err)
+	}
+	c.setHeaders(req)
+
+	resp, err := c.httpClient.Do(req)
+	if err != nil {
+		return nil, fmt.Errorf("executing request: %w", err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		body, _ := io.ReadAll(resp.Body)
+		return nil, fmt.Errorf("Confluence API returned %d: %s", resp.StatusCode, string(body))
+	}
+
+	var result ConfluenceSpacesResponse
+	if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
+		return nil, fmt.Errorf("decoding response: %w", err)
+	}
+
+	if len(result.Results) == 0 {
+		return nil, fmt.Errorf("no space found with key %q", spaceKey)
+	}
+
+	return &result.Results[0], nil
+}
+
+// CreateConfluencePage creates a new Confluence page and returns it.
+func (c *Client) CreateConfluencePage(payload ConfluenceCreatePayload) (*ConfluencePage, error) {
+	url := fmt.Sprintf("%s/wiki/api/v2/pages", c.baseURL)
+
+	data, err := json.Marshal(payload)
+	if err != nil {
+		return nil, fmt.Errorf("marshalling payload: %w", err)
+	}
+
+	req, err := http.NewRequest("POST", url, bytes.NewReader(data))
+	if err != nil {
+		return nil, fmt.Errorf("creating request: %w", err)
+	}
+	c.setHeaders(req)
+
+	resp, err := c.httpClient.Do(req)
+	if err != nil {
+		return nil, fmt.Errorf("executing request: %w", err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK && resp.StatusCode != http.StatusCreated {
+		body, _ := io.ReadAll(resp.Body)
+		return nil, fmt.Errorf("Confluence API returned %d: %s", resp.StatusCode, string(body))
+	}
+
+	var page ConfluencePage
+	if err := json.NewDecoder(resp.Body).Decode(&page); err != nil {
+		return nil, fmt.Errorf("decoding response: %w", err)
+	}
+
+	return &page, nil
+}
+
 // ConfluenceUpdatePayload is the body for PUT /wiki/api/v2/pages/{id}.
 type ConfluenceUpdatePayload struct {
 	ID      string                      `json:"id"`

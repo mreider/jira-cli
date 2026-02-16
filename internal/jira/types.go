@@ -117,6 +117,20 @@ type ConfluenceSpace struct {
 	Name string `json:"name"`
 }
 
+// ConfluenceCreatePayload is the body for POST /wiki/api/v2/pages.
+type ConfluenceCreatePayload struct {
+	SpaceID  string               `json:"spaceId"`
+	Status   string               `json:"status"`
+	Title    string               `json:"title"`
+	ParentID string               `json:"parentId,omitempty"`
+	Body     ConfluenceUpdateBody `json:"body"`
+}
+
+// ConfluenceSpacesResponse wraps the results array from GET /wiki/api/v2/spaces.
+type ConfluenceSpacesResponse struct {
+	Results []ConfluenceSpace `json:"results"`
+}
+
 // UpdatePayload is the body for PUT /rest/api/3/issue/{key}.
 type UpdatePayload struct {
 	Fields     UpdateFields `json:"fields"`
