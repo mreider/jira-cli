@@ -69,6 +69,65 @@ jira confluence get 85962893 --output-dir ./pages
 
 Accepts a page ID or full URL.
 
+### Search JIRA issues
+
+```bash
+# Raw JQL
+jira search --jql "project = PRODUCT AND status = 'In Progress'"
+
+# Smart filters (builds JQL automatically)
+jira search --project PRODUCT --status "In Progress"
+jira search --project PRODUCT --updated recent
+jira search --project PRODUCT --type Bug --assignee me
+jira search -p PRODUCT -l backend -l q1 --updated "last week"
+
+# Full text search
+jira search -q "login error"
+jira search --project PRODUCT -q "deployment"
+
+# Pull all results to markdown files
+jira search --project PRODUCT --updated recent --output-dir ./tickets
+```
+
+Flags: `--project`/`-p`, `--status`/`-s`, `--assignee`/`-a`, `--reporter`, `--type`/`-t`, `--label`/`-l`, `--updated`, `--created`, `--text`/`-q`, `--max-results`, `--order-by`, `--output-dir`, `--jql`.
+
+### Search Confluence pages
+
+```bash
+# Text search
+jira confluence search "deployment guide"
+
+# Filter by space and labels
+jira confluence search --space ENG --label architecture
+jira confluence search --space ENG --label architecture "deployment"
+
+# Recent pages
+jira confluence search --space ENG --updated recent
+jira confluence search --updated "last week"
+
+# Pull results to markdown files
+jira confluence search --space ENG --updated recent --output-dir ./pages
+```
+
+Flags: `--space`/`-s`, `--label`/`-l`, `--type`, `--updated`, `--created`, `--contributor`, `--max-results`, `--output-dir`.
+
+### Smart date filters
+
+The `--updated` and `--created` flags accept natural language date expressions:
+
+| Expression | Meaning |
+|---|---|
+| `today` | Since start of today |
+| `yesterday` | Since yesterday |
+| `recent` | Last 7 days |
+| `last week` | Last 7 days |
+| `this week` | Since start of this week |
+| `last month` | Last 30 days |
+| `this month` | Since start of this month |
+| `this quarter` | Last 90 days |
+| `this year` | Since start of this year |
+| `2025-01-15` | Since specific ISO date |
+
 ### Push body back to Confluence
 
 ```bash

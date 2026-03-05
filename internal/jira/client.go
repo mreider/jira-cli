@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"net/url"
 	"strings"
 
 	"github.com/dt-pm-tools/jira-cli/internal/config"
@@ -323,6 +324,81 @@ func (c *Client) UpdateConfluencePage(pageID string, payload ConfluenceUpdatePay
 	}
 
 	return nil
+}
+
+// SearchIssues searches for issues using JQL.
+func (c *Client) SearchIssues(jql string, maxResults int, startAt int) (*SearchResult, error) {
+	apiURL := fmt.Sprintf("%s/rest/api/3/search", c.baseURL)
+
+	payload := SearchPayload{
+		JQL:        jql,
+		MaxResults: maxResults,
+		StartAt:    startAt,
+		Fields:     []string{"summary", "status", "issuetype", "priority", "labels", "assignee", "reporter", "updated"},
+	}
+
+	data, err := json.Marshal(payload)
+	if err != nil {
+		return nil, fmt.Errorf("marshalling search payload: %w", err)
+	}
+
+	req, err := http.NewRequest("POST", apiURL, bytes.NewReader(data))
+	if err != nil {
+		return nil, fmt.Errorf("creating request: %w", err)
+	}
+	c.setHeaders(req)
+
+	resp, err := c.httpClient.Do(req)
+	if err != nil {
+		return nil, fmt.Errorf("executing request: %w", err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		body, _ := io.ReadAll(resp.Body)
+		return nil, formatAPIError(resp.StatusCode, body)
+	}
+
+	var result SearchResult
+	if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
+		return nil, fmt.Errorf("decoding response: %w", err)
+	}
+
+	return &result, nil
+}
+
+// SearchConfluence searches Confluence content using CQL.
+func (c *Client) SearchConfluence(cql string, limit int, start int) (*ConfluenceSearchResult, error) {
+	params := url.Values{}
+	params.Set("cql", cql)
+	params.Set("limit", fmt.Sprintf("%d", limit))
+	params.Set("start", fmt.Sprintf("%d", start))
+
+	apiURL := fmt.Sprintf("%s/wiki/rest/api/content/search?%s", c.baseURL, params.Encode())
+
+	req, err := http.NewRequest("GET", apiURL, nil)
+	if err != nil {
+		return nil, fmt.Errorf("creating request: %w", err)
+	}
+	c.setHeaders(req)
+
+	resp, err := c.httpClient.Do(req)
+	if err != nil {
+		return nil, fmt.Errorf("executing request: %w", err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		body, _ := io.ReadAll(resp.Body)
+		return nil, fmt.Errorf("Confluence search API returned %d: %s", resp.StatusCode, string(body))
+	}
+
+	var result ConfluenceSearchResult
+	if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
+		return nil, fmt.Errorf("decoding response: %w", err)
+	}
+
+	return &result, nil
 }
 
 // JiraErrors represents the structured error response from the JIRA API.

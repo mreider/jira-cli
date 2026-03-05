@@ -165,3 +165,46 @@ type TransitionInfo struct {
 	Name string `json:"name"`
 	To   Status `json:"to"`
 }
+
+// SearchResult is the response from POST /rest/api/3/search.
+type SearchResult struct {
+	Issues     []Issue `json:"issues"`
+	Total      int     `json:"total"`
+	MaxResults int     `json:"maxResults"`
+	StartAt    int     `json:"startAt"`
+}
+
+// SearchPayload is the body for POST /rest/api/3/search.
+type SearchPayload struct {
+	JQL        string   `json:"jql"`
+	MaxResults int      `json:"maxResults"`
+	StartAt    int      `json:"startAt"`
+	Fields     []string `json:"fields"`
+}
+
+// ConfluenceSearchResult is the response from Confluence content search.
+type ConfluenceSearchResult struct {
+	Results    []ConfluenceSearchEntry `json:"results"`
+	Start      int                     `json:"start"`
+	Limit      int                     `json:"limit"`
+	Size       int                     `json:"size"`
+	TotalSize  int                     `json:"totalSize"`
+}
+
+// ConfluenceSearchEntry represents a single search result from Confluence.
+type ConfluenceSearchEntry struct {
+	Content      ConfluenceSearchContent `json:"content"`
+	Title        string                  `json:"title"`
+	Excerpt      string                  `json:"excerpt"`
+	URL          string                  `json:"url"`
+	LastModified string                  `json:"lastModified"`
+}
+
+// ConfluenceSearchContent holds the content object within a Confluence search result.
+type ConfluenceSearchContent struct {
+	ID    string          `json:"id"`
+	Type  string          `json:"type"`
+	Title string          `json:"title"`
+	Space ConfluenceSpace `json:"space"`
+	Links PageLinks       `json:"_links"`
+}
