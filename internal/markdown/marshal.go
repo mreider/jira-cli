@@ -17,6 +17,18 @@ const (
 	preserveEnd   = "<!-- /PRESERVED -->"
 )
 
+// yamlQuote returns a YAML-safe string value. If the value contains characters
+// that are syntactically significant in YAML (colon, hash, brackets, etc.),
+// it is wrapped in double quotes with internal quotes escaped.
+func yamlQuote(s string) string {
+	if strings.ContainsAny(s, `:#{}[]&*?|->!%@"'` + "\n") {
+		escaped := strings.ReplaceAll(s, `\`, `\\`)
+		escaped = strings.ReplaceAll(escaped, `"`, `\"`)
+		return `"` + escaped + `"`
+	}
+	return s
+}
+
 // Human-readable descriptions for preserved ADF node types.
 var preservedDescriptions = map[string]string{
 	"mediaSingle":          "Inline image",
@@ -53,15 +65,15 @@ func Marshal(issue *jira.Issue, baseURL string, customProps map[string]interface
 	b.WriteString("---\n")
 	b.WriteString("# READ-ONLY metadata pulled from JIRA. Changes here are NOT pushed back.\n")
 	b.WriteString("# Only the document body (below the frontmatter) is synced on push.\n")
-	b.WriteString(fmt.Sprintf("key: %s\n", issue.Key))
-	b.WriteString(fmt.Sprintf("title: %s\n", issue.Fields.Summary))
-	b.WriteString(fmt.Sprintf("status: %s\n", issue.Fields.Status.Name))
+	b.WriteString(fmt.Sprintf("key: %s\n", yamlQuote(issue.Key)))
+	b.WriteString(fmt.Sprintf("title: %s\n", yamlQuote(issue.Fields.Summary)))
+	b.WriteString(fmt.Sprintf("status: %s\n", yamlQuote(issue.Fields.Status.Name)))
 	if issue.Fields.Status.StatusCategory != nil {
-		b.WriteString(fmt.Sprintf("statusCategory: %s\n", issue.Fields.Status.StatusCategory.Name))
+		b.WriteString(fmt.Sprintf("statusCategory: %s\n", yamlQuote(issue.Fields.Status.StatusCategory.Name)))
 	}
-	b.WriteString(fmt.Sprintf("type: %s\n", issue.Fields.IssueType.Name))
+	b.WriteString(fmt.Sprintf("type: %s\n", yamlQuote(issue.Fields.IssueType.Name)))
 	if issue.Fields.Priority.Name != "" {
-		b.WriteString(fmt.Sprintf("priority: %s\n", issue.Fields.Priority.Name))
+		b.WriteString(fmt.Sprintf("priority: %s\n", yamlQuote(issue.Fields.Priority.Name)))
 	}
 	if len(issue.Fields.Labels) > 0 {
 		b.WriteString(fmt.Sprintf("labels: [%s]\n", strings.Join(issue.Fields.Labels, ", ")))
@@ -69,10 +81,10 @@ func Marshal(issue *jira.Issue, baseURL string, customProps map[string]interface
 		b.WriteString("labels: []\n")
 	}
 	if issue.Fields.Assignee != nil {
-		b.WriteString(fmt.Sprintf("assignee: %s\n", issue.Fields.Assignee.EmailAddress))
+		b.WriteString(fmt.Sprintf("assignee: %s\n", yamlQuote(issue.Fields.Assignee.EmailAddress)))
 	}
 	if issue.Fields.Reporter != nil {
-		b.WriteString(fmt.Sprintf("reporter: %s\n", issue.Fields.Reporter.EmailAddress))
+		b.WriteString(fmt.Sprintf("reporter: %s\n", yamlQuote(issue.Fields.Reporter.EmailAddress)))
 	}
 	b.WriteString(fmt.Sprintf("url: %s/browse/%s\n", baseURL, issue.Key))
 	if issue.Fields.Updated != "" {
@@ -139,12 +151,12 @@ func MarshalConfluencePage(page *jira.ConfluencePage, space *jira.ConfluenceSpac
 	b.WriteString("# READ-ONLY metadata pulled from Confluence. Changes here are NOT pushed back.\n")
 	b.WriteString("# Only the document body (below the frontmatter) is synced on push.\n")
 	b.WriteString(fmt.Sprintf("source: confluence\n"))
-	b.WriteString(fmt.Sprintf("pageId: %s\n", page.ID))
-	b.WriteString(fmt.Sprintf("title: %s\n", page.Title))
-	b.WriteString(fmt.Sprintf("status: %s\n", page.Status))
+	b.WriteString(fmt.Sprintf("pageId: %s\n", yamlQuote(page.ID)))
+	b.WriteString(fmt.Sprintf("title: %s\n", yamlQuote(page.Title)))
+	b.WriteString(fmt.Sprintf("status: %s\n", yamlQuote(page.Status)))
 	if space != nil {
-		b.WriteString(fmt.Sprintf("spaceKey: %s\n", space.Key))
-		b.WriteString(fmt.Sprintf("spaceName: %s\n", space.Name))
+		b.WriteString(fmt.Sprintf("spaceKey: %s\n", yamlQuote(space.Key)))
+		b.WriteString(fmt.Sprintf("spaceName: %s\n", yamlQuote(space.Name)))
 	}
 	b.WriteString(fmt.Sprintf("version: %d\n", page.Version.Number))
 	if page.Links.Base != "" && page.Links.WebUI != "" {

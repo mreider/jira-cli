@@ -62,7 +62,7 @@ func (c *Client) GetIssue(key string) (*Issue, error) {
 
 // UpdateIssue updates an issue's fields.
 func (c *Client) UpdateIssue(key string, payload UpdatePayload) error {
-	url := fmt.Sprintf("%s/rest/api/3/issue/%s?notifyUsers=false", c.baseURL, key)
+	url := fmt.Sprintf("%s/rest/api/3/issue/%s", c.baseURL, key)
 
 	data, err := json.Marshal(payload)
 	if err != nil {
