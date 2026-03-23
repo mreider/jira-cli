@@ -1,7 +1,7 @@
 # a-cli
 
 [![Tests](https://github.com/mreider/a-cli/actions/workflows/test.yml/badge.svg)](https://github.com/mreider/a-cli/actions/workflows/test.yml)
-[![Release](https://img.shields.io/github/v/release/mreider/a-cli)](https://github.com/mreider/a-cli/releases/latest)
+[![Release](https://img.shields.io/github/v/release/mreider/a-cli?color=brightgreen)](https://github.com/mreider/a-cli/releases/latest)
 
 A command-line tool for syncing JIRA and Confluence content as markdown files. Pull tickets and pages to markdown, search with smart filters, edit locally, push changes back.
 

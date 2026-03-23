@@ -1,6 +1,8 @@
 name: Tests
 
 on:
+  push:
+    branches: [main]
   pull_request:
     branches: [main]
 
@@ -19,3 +21,21 @@ jobs:
 
       - name: Run unit tests
         run: go test -v -short ./...
+
+  integration-tests:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version: '1.21'
+
+      - name: Run all tests (unit + integration)
+        env:
+          JIRA_URL: ${{ secrets.JIRA_URL }}
+          JIRA_EMAIL: ${{ secrets.JIRA_EMAIL }}
+          JIRA_TOKEN: ${{ secrets.JIRA_TOKEN }}
+          TEST_JIRA_ISSUE_KEY: ${{ secrets.TEST_JIRA_ISSUE_KEY }}
+          TEST_CONFLUENCE_PAGE_ID: ${{ secrets.TEST_CONFLUENCE_PAGE_ID }}
+        run: go test -v ./...
