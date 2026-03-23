@@ -3,6 +3,7 @@ package config
 import (
 	"os"
 	"path/filepath"
+	"runtime"
 	"testing"
 )
 
@@ -53,13 +54,15 @@ func TestSaveAndLoad(t *testing.T) {
 		t.Fatalf("Save failed: %v", err)
 	}
 
-	// Verify file permissions
-	info, err := os.Stat(path)
-	if err != nil {
-		t.Fatalf("Stat failed: %v", err)
-	}
-	if perm := info.Mode().Perm(); perm != 0600 {
-		t.Errorf("expected permissions 0600, got %o", perm)
+	// Verify file permissions (skip on Windows — no Unix permission bits)
+	if runtime.GOOS != "windows" {
+		info, err := os.Stat(path)
+		if err != nil {
+			t.Fatalf("Stat failed: %v", err)
+		}
+		if perm := info.Mode().Perm(); perm != 0600 {
+			t.Errorf("expected permissions 0600, got %o", perm)
+		}
 	}
 
 	loaded, err := Load(path)
