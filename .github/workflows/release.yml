@@ -2,14 +2,75 @@ name: Release
 
 on:
   push:
-    tags:
-      - 'v*'
+    branches: [main]
 
 permissions:
   contents: write
 
 jobs:
+  test:
+    strategy:
+      matrix:
+        os: [ubuntu-latest, windows-latest, macos-latest]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version: '1.21'
+
+      - name: Run unit tests
+        run: go test -v -short ./...
+
+  integration-tests:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version: '1.21'
+
+      - name: Run all tests (unit + integration)
+        env:
+          JIRA_URL: ${{ secrets.JIRA_URL }}
+          JIRA_EMAIL: ${{ secrets.JIRA_EMAIL }}
+          JIRA_TOKEN: ${{ secrets.JIRA_TOKEN }}
+          TEST_JIRA_ISSUE_KEY: ${{ secrets.TEST_JIRA_ISSUE_KEY }}
+          TEST_CONFLUENCE_PAGE_ID: ${{ secrets.TEST_CONFLUENCE_PAGE_ID }}
+        run: go test -v ./...
+
+  tag:
+    needs: [test, integration-tests]
+    runs-on: ubuntu-latest
+    outputs:
+      version: ${{ steps.bump.outputs.version }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Get next version
+        id: bump
+        run: |
+          latest=$(git tag -l 'v0.*' --sort=-v:refname | head -n1)
+          if [ -z "$latest" ]; then
+            next="v0.8.0"
+          else
+            n=$(echo "$latest" | sed 's/v0\.\([0-9]*\)\..*/\1/')
+            next="v0.$((n + 1)).0"
+          fi
+          echo "version=$next" >> "$GITHUB_OUTPUT"
+          echo "Next version: $next"
+
+      - name: Create and push tag
+        run: |
+          git tag ${{ steps.bump.outputs.version }}
+          git push origin ${{ steps.bump.outputs.version }}
+
   build:
+    needs: tag
     runs-on: ubuntu-latest
     strategy:
       matrix:
@@ -42,7 +103,7 @@ jobs:
           CGO_ENABLED: '0'
           GOOS: ${{ matrix.goos }}
           GOARCH: ${{ matrix.goarch }}
-        run: go build -ldflags="-s -w -X github.com/mreider/a-cli/cmd.version=${{ github.ref_name }}" -o a-cli-${{ matrix.suffix }} .
+        run: go build -ldflags="-s -w -X github.com/mreider/a-cli/cmd.version=${{ needs.tag.outputs.version }}" -o a-cli-${{ matrix.suffix }} .
 
       - uses: actions/upload-artifact@v4
         with:
@@ -50,7 +111,7 @@ jobs:
           path: a-cli-${{ matrix.suffix }}
 
   release:
-    needs: build
+    needs: [tag, build]
     runs-on: ubuntu-latest
     steps:
       - uses: actions/download-artifact@v4
@@ -61,5 +122,6 @@ jobs:
       - name: Create release
         uses: softprops/action-gh-release@v2
         with:
+          tag_name: ${{ needs.tag.outputs.version }}
           generate_release_notes: true
           files: artifacts/*

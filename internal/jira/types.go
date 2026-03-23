@@ -167,7 +167,7 @@ type TransitionInfo struct {
 	To   Status `json:"to"`
 }
 
-// SearchResult is the response from POST /rest/api/3/search.
+// SearchResult is the response from POST /rest/api/3/search/jql.
 type SearchResult struct {
 	Issues     []Issue `json:"issues"`
 	Total      int     `json:"total"`
@@ -175,7 +175,7 @@ type SearchResult struct {
 	StartAt    int     `json:"startAt"`
 }
 
-// SearchPayload is the body for POST /rest/api/3/search.
+// SearchPayload is the body for POST /rest/api/3/search/jql.
 type SearchPayload struct {
 	JQL        string   `json:"jql"`
 	MaxResults int      `json:"maxResults"`

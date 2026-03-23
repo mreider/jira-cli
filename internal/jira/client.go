@@ -328,7 +328,7 @@ func (c *Client) UpdateConfluencePage(pageID string, payload ConfluenceUpdatePay
 
 // SearchIssues searches for issues using JQL.
 func (c *Client) SearchIssues(jql string, maxResults int, startAt int) (*SearchResult, error) {
-	apiURL := fmt.Sprintf("%s/rest/api/3/search", c.baseURL)
+	apiURL := fmt.Sprintf("%s/rest/api/3/search/jql", c.baseURL)
 
 	payload := SearchPayload{
 		JQL:        jql,
