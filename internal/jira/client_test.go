@@ -185,6 +185,169 @@ func TestAPIError_NonOK(t *testing.T) {
 	}
 }
 
+func TestGetConfluenceChildPages_Endpoint(t *testing.T) {
+	callCount := 0
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		callCount++
+		if r.URL.Path != "/wiki/api/v2/pages/12345/children" {
+			t.Errorf("unexpected path: %s", r.URL.Path)
+		}
+		if r.Method != "GET" {
+			t.Errorf("expected GET, got %s", r.Method)
+		}
+		if callCount == 1 {
+			json.NewEncoder(w).Encode(ConfluenceChildrenResponse{
+				Results: []ConfluenceChildPage{{ID: "100", Title: "Child A"}},
+				Links:   PaginationLinks{Next: "/wiki/api/v2/pages/12345/children?cursor=abc"},
+			})
+		} else {
+			json.NewEncoder(w).Encode(ConfluenceChildrenResponse{
+				Results: []ConfluenceChildPage{{ID: "200", Title: "Child B"}},
+			})
+		}
+	}))
+	defer srv.Close()
+
+	client := testClient(srv.URL)
+	children, err := client.GetConfluenceChildPages("12345")
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if len(children) != 2 {
+		t.Fatalf("expected 2 children, got %d", len(children))
+	}
+	if children[0].ID != "100" || children[0].Title != "Child A" {
+		t.Errorf("unexpected first child: %+v", children[0])
+	}
+	if children[1].ID != "200" || children[1].Title != "Child B" {
+		t.Errorf("unexpected second child: %+v", children[1])
+	}
+	if callCount != 2 {
+		t.Errorf("expected 2 API calls for pagination, got %d", callCount)
+	}
+}
+
+func TestGetConfluenceFooterComments_Endpoint(t *testing.T) {
+	var gotPath, gotMethod string
+
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		gotPath = r.URL.Path
+		gotMethod = r.Method
+		json.NewEncoder(w).Encode(ConfluenceCommentsResponse{
+			Results: []ConfluenceComment{
+				{
+					ID:    "100",
+					Title: "Re: Test",
+					Version: ConfluenceCommentVersion{
+						CreatedAt: "2024-01-15T10:00:00Z",
+						AuthorID:  "abc123",
+					},
+					Body: CommentBody{
+						Storage: &PageBodyFormat{
+							Value:          "<p>Great page!</p>",
+							Representation: "storage",
+						},
+					},
+				},
+			},
+		})
+	}))
+	defer srv.Close()
+
+	client := testClient(srv.URL)
+	comments, err := client.GetConfluenceFooterComments("12345")
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	if gotPath != "/wiki/api/v2/pages/12345/footer-comments" {
+		t.Errorf("expected path /wiki/api/v2/pages/12345/footer-comments, got %s", gotPath)
+	}
+	if gotMethod != "GET" {
+		t.Errorf("expected GET, got %s", gotMethod)
+	}
+	if len(comments) != 1 {
+		t.Fatalf("expected 1 comment, got %d", len(comments))
+	}
+	if comments[0].ID != "100" {
+		t.Errorf("expected comment ID 100, got %s", comments[0].ID)
+	}
+	if comments[0].Body.Storage == nil || comments[0].Body.Storage.Value != "<p>Great page!</p>" {
+		t.Errorf("unexpected body: %+v", comments[0].Body)
+	}
+}
+
+func TestGetConfluenceInlineComments_Endpoint(t *testing.T) {
+	var gotPath, gotMethod string
+
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		gotPath = r.URL.Path
+		gotMethod = r.Method
+		json.NewEncoder(w).Encode(ConfluenceCommentsResponse{
+			Results: []ConfluenceComment{
+				{
+					ID:               "200",
+					Title:            "Re: Test",
+					ResolutionStatus: "open",
+					Version: ConfluenceCommentVersion{
+						CreatedAt: "2024-01-17T14:00:00Z",
+					},
+					Body: CommentBody{
+						Storage: &PageBodyFormat{
+							Value:          "<p>Fix this</p>",
+							Representation: "storage",
+						},
+					},
+					Properties: map[string]interface{}{
+						"inline-original-selection": "deployment strategy",
+					},
+				},
+			},
+		})
+	}))
+	defer srv.Close()
+
+	client := testClient(srv.URL)
+	comments, err := client.GetConfluenceInlineComments("12345")
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	if gotPath != "/wiki/api/v2/pages/12345/inline-comments" {
+		t.Errorf("expected path /wiki/api/v2/pages/12345/inline-comments, got %s", gotPath)
+	}
+	if gotMethod != "GET" {
+		t.Errorf("expected GET, got %s", gotMethod)
+	}
+	if len(comments) != 1 {
+		t.Fatalf("expected 1 comment, got %d", len(comments))
+	}
+	if comments[0].ResolutionStatus != "open" {
+		t.Errorf("expected resolution status 'open', got %q", comments[0].ResolutionStatus)
+	}
+	sel, _ := comments[0].Properties["inline-original-selection"].(string)
+	if sel != "deployment strategy" {
+		t.Errorf("expected inline selection 'deployment strategy', got %q", sel)
+	}
+}
+
+func TestGetConfluenceInlineComments_404_ReturnsNil(t *testing.T) {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusNotFound)
+		w.Write([]byte(`{"message":"Not Found"}`))
+	}))
+	defer srv.Close()
+
+	client := testClient(srv.URL)
+	comments, err := client.GetConfluenceInlineComments("12345")
+	if err != nil {
+		t.Fatalf("expected nil error on 404, got: %v", err)
+	}
+	if comments != nil {
+		t.Errorf("expected nil comments on 404, got %d comments", len(comments))
+	}
+}
+
 // --- Integration tests (require env vars, run in CI with secrets) ---
 
 func integrationClient(t *testing.T) *Client {

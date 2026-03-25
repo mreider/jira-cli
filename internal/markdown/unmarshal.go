@@ -729,6 +729,11 @@ func UnmarshalConfluencePage(content string) (*ConfluenceDoc, error) {
 	// Strip the title heading (# Title) if present
 	body = stripConfluenceTitleHeading(body, meta.Title)
 
+	// Strip the ## Comments section (comments are informational, not pushed back)
+	if idx := strings.Index(body, ConfluenceCommentsMarker); idx >= 0 {
+		body = body[:idx]
+	}
+
 	doc := &ConfluenceDoc{
 		PageID:    meta.PageID,
 		Title:     meta.Title,

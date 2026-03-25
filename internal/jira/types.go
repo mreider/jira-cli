@@ -87,6 +87,35 @@ type ConfluencePage struct {
 	Links   PageLinks      `json:"_links"`
 }
 
+// ConfluenceComment represents a comment on a Confluence page (v2 API).
+type ConfluenceComment struct {
+	ID               string                   `json:"id"`
+	Status           string                   `json:"status"`
+	Title            string                   `json:"title"`
+	Version          ConfluenceCommentVersion `json:"version"`
+	Body             CommentBody              `json:"body,omitempty"`
+	ResolutionStatus string                   `json:"resolutionStatus,omitempty"` // inline only: "open" or "resolved"
+	Properties       map[string]interface{}   `json:"properties,omitempty"`       // inline only
+}
+
+// ConfluenceCommentVersion contains version/author info for a comment.
+type ConfluenceCommentVersion struct {
+	CreatedAt string `json:"createdAt"`
+	Number    int    `json:"number"`
+	AuthorID  string `json:"authorId,omitempty"`
+}
+
+// CommentBody wraps comment body content in storage format.
+type CommentBody struct {
+	Storage *PageBodyFormat `json:"storage,omitempty"`
+}
+
+// ConfluenceCommentsResponse is the paginated response for comment endpoints.
+type ConfluenceCommentsResponse struct {
+	Results []ConfluenceComment `json:"results"`
+	Links   PaginationLinks     `json:"_links"`
+}
+
 // PageVersion contains version info for a Confluence page.
 type PageVersion struct {
 	Number    int    `json:"number"`
@@ -181,6 +210,24 @@ type SearchPayload struct {
 	MaxResults int      `json:"maxResults"`
 	StartAt    int      `json:"startAt"`
 	Fields     []string `json:"fields"`
+}
+
+// ConfluenceChildrenResponse is the response from GET /wiki/api/v2/pages/{id}/children.
+type ConfluenceChildrenResponse struct {
+	Results []ConfluenceChildPage `json:"results"`
+	Links   PaginationLinks       `json:"_links"`
+}
+
+// ConfluenceChildPage is a summary of a child page returned by the children endpoint.
+type ConfluenceChildPage struct {
+	ID     string `json:"id"`
+	Title  string `json:"title"`
+	Status string `json:"status"`
+}
+
+// PaginationLinks contains pagination cursors for Confluence v2 API responses.
+type PaginationLinks struct {
+	Next string `json:"next,omitempty"`
 }
 
 // ConfluenceSearchResult is the response from Confluence content search.

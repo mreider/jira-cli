@@ -276,6 +276,140 @@ func (c *Client) CreateConfluencePage(payload ConfluenceCreatePayload) (*Conflue
 	return &page, nil
 }
 
+// GetConfluenceChildPages fetches all direct child pages of a given page ID.
+// It handles pagination internally and returns the complete list.
+func (c *Client) GetConfluenceChildPages(pageID string) ([]ConfluenceChildPage, error) {
+	var all []ConfluenceChildPage
+	apiURL := fmt.Sprintf("%s/wiki/api/v2/pages/%s/children?limit=50", c.baseURL, pageID)
+
+	for apiURL != "" {
+		req, err := http.NewRequest("GET", apiURL, nil)
+		if err != nil {
+			return nil, fmt.Errorf("creating request: %w", err)
+		}
+		c.setHeaders(req)
+
+		resp, err := c.httpClient.Do(req)
+		if err != nil {
+			return nil, fmt.Errorf("executing request: %w", err)
+		}
+
+		if resp.StatusCode != http.StatusOK {
+			body, _ := io.ReadAll(resp.Body)
+			resp.Body.Close()
+			return nil, fmt.Errorf("Confluence API returned %d: %s", resp.StatusCode, string(body))
+		}
+
+		var result ConfluenceChildrenResponse
+		if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
+			resp.Body.Close()
+			return nil, fmt.Errorf("decoding response: %w", err)
+		}
+		resp.Body.Close()
+
+		all = append(all, result.Results...)
+
+		if result.Links.Next != "" {
+			apiURL = c.baseURL + result.Links.Next
+		} else {
+			apiURL = ""
+		}
+	}
+
+	return all, nil
+}
+
+// GetConfluenceFooterComments fetches footer (page-level) comments for a Confluence page.
+func (c *Client) GetConfluenceFooterComments(pageID string) ([]ConfluenceComment, error) {
+	var all []ConfluenceComment
+	apiURL := fmt.Sprintf("%s/wiki/api/v2/pages/%s/footer-comments?body-format=storage", c.baseURL, pageID)
+
+	for apiURL != "" {
+		req, err := http.NewRequest("GET", apiURL, nil)
+		if err != nil {
+			return nil, fmt.Errorf("creating request: %w", err)
+		}
+		c.setHeaders(req)
+
+		resp, err := c.httpClient.Do(req)
+		if err != nil {
+			return nil, fmt.Errorf("executing request: %w", err)
+		}
+
+		if resp.StatusCode != http.StatusOK {
+			body, _ := io.ReadAll(resp.Body)
+			resp.Body.Close()
+			return nil, fmt.Errorf("Confluence API returned %d: %s", resp.StatusCode, string(body))
+		}
+
+		var result ConfluenceCommentsResponse
+		if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
+			resp.Body.Close()
+			return nil, fmt.Errorf("decoding response: %w", err)
+		}
+		resp.Body.Close()
+
+		all = append(all, result.Results...)
+
+		if result.Links.Next != "" {
+			apiURL = c.baseURL + result.Links.Next
+		} else {
+			apiURL = ""
+		}
+	}
+
+	return all, nil
+}
+
+// GetConfluenceInlineComments fetches inline comments for a Confluence page.
+// Returns nil (not error) on 404, which is a known Confluence bug on pages with resolved comments.
+func (c *Client) GetConfluenceInlineComments(pageID string) ([]ConfluenceComment, error) {
+	var all []ConfluenceComment
+	apiURL := fmt.Sprintf("%s/wiki/api/v2/pages/%s/inline-comments?body-format=storage", c.baseURL, pageID)
+
+	for apiURL != "" {
+		req, err := http.NewRequest("GET", apiURL, nil)
+		if err != nil {
+			return nil, fmt.Errorf("creating request: %w", err)
+		}
+		c.setHeaders(req)
+
+		resp, err := c.httpClient.Do(req)
+		if err != nil {
+			return nil, fmt.Errorf("executing request: %w", err)
+		}
+
+		// Known Confluence bug: returns 404 on pages with resolved inline comments
+		if resp.StatusCode == http.StatusNotFound {
+			resp.Body.Close()
+			return nil, nil
+		}
+
+		if resp.StatusCode != http.StatusOK {
+			body, _ := io.ReadAll(resp.Body)
+			resp.Body.Close()
+			return nil, fmt.Errorf("Confluence API returned %d: %s", resp.StatusCode, string(body))
+		}
+
+		var result ConfluenceCommentsResponse
+		if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
+			resp.Body.Close()
+			return nil, fmt.Errorf("decoding response: %w", err)
+		}
+		resp.Body.Close()
+
+		all = append(all, result.Results...)
+
+		if result.Links.Next != "" {
+			apiURL = c.baseURL + result.Links.Next
+		} else {
+			apiURL = ""
+		}
+	}
+
+	return all, nil
+}
+
 // ConfluenceUpdatePayload is the body for PUT /wiki/api/v2/pages/{id}.
 type ConfluenceUpdatePayload struct {
 	ID      string                      `json:"id"`

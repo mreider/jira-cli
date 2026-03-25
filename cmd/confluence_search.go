@@ -180,7 +180,7 @@ func pullConfluenceSearchResults(client *jira.Client, entries []jira.ConfluenceS
 			}
 		}
 
-		md, err := markdown.MarshalConfluencePage(page, space, nil)
+		md, err := markdown.MarshalConfluencePage(page, space, nil, nil, nil)
 		if err != nil {
 			fmt.Fprintf(os.Stderr, "Warning: could not convert page %s: %v\n", pageID, err)
 			continue

@@ -4,17 +4,23 @@ import (
 	"encoding/base64"
 	"encoding/json"
 	"fmt"
+	"regexp"
 	"strings"
 	"time"
 
 	"github.com/mreider/a-cli/internal/jira"
 )
 
-// Marker constants for preserved ADF nodes.
+// Marker constants for preserved ADF nodes and comments.
 const (
 	preserveStart = "<!-- PRESERVED:"
 	preserveData  = "<!-- data:"
 	preserveEnd   = "<!-- /PRESERVED -->"
+
+	// ConfluenceCommentsMarker is written before the ## Comments section so that
+	// UnmarshalConfluencePage can reliably strip it (avoids false positives if
+	// the page body itself contains a "## Comments" heading).
+	ConfluenceCommentsMarker = "<!-- a-cli:comments -->"
 )
 
 // yamlQuote returns a YAML-safe string value. If the value contains characters
@@ -143,7 +149,7 @@ func Marshal(issue *jira.Issue, baseURL string, customProps map[string]interface
 // MarshalConfluencePage converts a Confluence page (with ADF body) into markdown
 // with YAML frontmatter. Reuses the same ADF→markdown converter as JIRA issues.
 // If customProps is non-nil, those properties are preserved after the Confluence-managed fields.
-func MarshalConfluencePage(page *jira.ConfluencePage, space *jira.ConfluenceSpace, customProps map[string]interface{}) (string, error) {
+func MarshalConfluencePage(page *jira.ConfluencePage, space *jira.ConfluenceSpace, customProps map[string]interface{}, footerComments, inlineComments []jira.ConfluenceComment) (string, error) {
 	var b strings.Builder
 
 	// YAML frontmatter (read-only)
@@ -188,6 +194,46 @@ func MarshalConfluencePage(page *jira.ConfluencePage, space *jira.ConfluenceSpac
 		}
 	} else {
 		b.WriteString("(No content)\n")
+	}
+
+	// Render comments section (informational only — stripped on push)
+	if len(footerComments) > 0 || len(inlineComments) > 0 {
+		b.WriteString("\n")
+		b.WriteString(ConfluenceCommentsMarker)
+		b.WriteString("\n## Comments\n\n")
+
+		for _, c := range inlineComments {
+			date := formatDate(c.Version.CreatedAt)
+			status := c.ResolutionStatus
+			if status == "" {
+				status = "open"
+			}
+			sel := inlineSelection(c.Properties)
+
+			if status == "open" {
+				b.WriteString(fmt.Sprintf("### [UNRESOLVED] %s · inline\n", date))
+			} else {
+				b.WriteString(fmt.Sprintf("### [resolved] %s · inline\n", date))
+			}
+			if sel != "" {
+				b.WriteString(fmt.Sprintf("on: %q\n", sel))
+			}
+			body := commentBodyText(c.Body)
+			if body != "" {
+				b.WriteString(body + "\n")
+			}
+			b.WriteString("\n")
+		}
+
+		for _, c := range footerComments {
+			date := formatDate(c.Version.CreatedAt)
+			b.WriteString(fmt.Sprintf("### %s · footer\n", date))
+			body := commentBodyText(c.Body)
+			if body != "" {
+				b.WriteString(body + "\n")
+			}
+			b.WriteString("\n")
+		}
 	}
 
 	return b.String(), nil
@@ -487,6 +533,40 @@ func writePreservedMarker(b *strings.Builder, node *jira.ADFNode) {
 	b.WriteString(fmt.Sprintf("%s%s -->\n", preserveData, encoded))
 	b.WriteString(preserveEnd)
 	b.WriteString("\n")
+}
+
+// commentBodyText extracts plain text from a comment's storage-format body.
+func commentBodyText(body jira.CommentBody) string {
+	if body.Storage != nil && body.Storage.Value != "" {
+		return stripHTMLTags(body.Storage.Value)
+	}
+	return ""
+}
+
+// inlineSelection extracts the original selected text from inline comment properties.
+func inlineSelection(props map[string]interface{}) string {
+	if props == nil {
+		return ""
+	}
+	if v, ok := props["inline-original-selection"]; ok {
+		if s, ok := v.(string); ok {
+			return s
+		}
+	}
+	return ""
+}
+
+// stripHTMLTags removes HTML tags and decodes common entities.
+func stripHTMLTags(s string) string {
+	re := regexp.MustCompile(`<[^>]*>`)
+	text := re.ReplaceAllString(s, "")
+	text = strings.ReplaceAll(text, "&amp;", "&")
+	text = strings.ReplaceAll(text, "&lt;", "<")
+	text = strings.ReplaceAll(text, "&gt;", ">")
+	text = strings.ReplaceAll(text, "&quot;", `"`)
+	text = strings.ReplaceAll(text, "&#39;", "'")
+	text = strings.ReplaceAll(text, "&nbsp;", " ")
+	return strings.TrimSpace(text)
 }
 
 func formatDate(isoDate string) string {
