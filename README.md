@@ -27,11 +27,25 @@ make build
 
 ## Setup
 
+### Interactive setup
+
 ```bash
 a-cli config
 ```
 
 Enter your Atlassian Cloud URL, email, and [API token](https://id.atlassian.com/manage-profile/security/api-tokens). Config is saved to `~/.a-cli.yaml` (also reads legacy `~/.jira-cli.yaml`).
+
+### Environment variables
+
+You can also configure a-cli with environment variables, which take priority over the config file:
+
+```bash
+export JIRA_URL=https://your-org.atlassian.net
+export JIRA_EMAIL=you@example.com
+export JIRA_TOKEN=your-api-token
+```
+
+This is the recommended approach when using a-cli with AI assistants or LLM-based tools. Environment variables keep tokens out of the LLM context, avoiding accidental exposure to the model provider. a-cli has no `--token` flag by design — tokens are never passed as command-line arguments.
 
 ## Commands
 
